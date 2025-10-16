@@ -25,9 +25,9 @@ export function DeliveryPage() {
   const [error, setError] = useState('');
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [productDetails, setProductDetails] = useState<Record<string, Product>>({});
-  // Add these two state variables
   const [isShopOpen, setIsShopOpen] = useState<boolean>(true);
   const [checkingShopStatus, setCheckingShopStatus] = useState(true);
+  const [locationPermission, setLocationPermission] = useState<'prompt' | 'granted' | 'denied'>('prompt');
 
   useEffect(() => {
     const getShopInfo = async () => {
@@ -39,15 +39,36 @@ export function DeliveryPage() {
       }
     };
     getShopInfo();
-    getCurrentLocation();
+    checkLocationPermission();
     loadProductDetails();
-    checkShopStatus(); // Add this here
+    checkShopStatus();
   }, []);
 
-  // Remove the duplicate useEffect for checkShopStatus
-  // useEffect(() => {
-  //   checkShopStatus();
-  // }, []);
+  const checkLocationPermission = async () => {
+    if (!navigator.permissions) {
+      getCurrentLocation();
+      return;
+    }
+
+    try {
+      const result = await navigator.permissions.query({ name: 'geolocation' });
+      setLocationPermission(result.state);
+      
+      result.addEventListener('change', () => {
+        setLocationPermission(result.state);
+        if (result.state === 'granted') {
+          getCurrentLocation();
+        }
+      });
+
+      if (result.state === 'granted') {
+        getCurrentLocation();
+      }
+    } catch (err) {
+      console.error('Error checking location permission:', err);
+      getCurrentLocation();
+    }
+  };
 
   const loadProductDetails = async () => {
     if (items.length === 0) return;
@@ -84,15 +105,26 @@ export function DeliveryPage() {
       (position) => {
         setCurrentLat(position.coords.latitude);
         setCurrentLng(position.coords.longitude);
+        setLocationPermission('granted');
         setError('');
         setLoading(false);
       },
       (err) => {
         console.error('Error getting location:', err);
-        setError(t('allowLocationAccess'));
+        
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocationPermission('denied');
+          setError(t('locationPermissionDenied') || 'Location access was denied. Please enable location access in your browser settings.');
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setError(t('locationUnavailable') || 'Location information is unavailable. Please try again.');
+        } else if (err.code === err.TIMEOUT) {
+          setError(t('locationTimeout') || 'Location request timed out. Please try again.');
+        } else {
+          setError(t('allowLocationAccess'));
+        }
         setLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 15000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
@@ -109,7 +141,7 @@ export function DeliveryPage() {
       }
     } catch (err) {
       console.error('Error checking shop status:', err);
-      setIsShopOpen(true); // Default to open on error
+      setIsShopOpen(true);
     } finally {
       setCheckingShopStatus(false);
     }
@@ -119,7 +151,6 @@ export function DeliveryPage() {
     e.preventDefault();
     if (items.length === 0) return;
 
-    // Re-check shop status before submitting
     try {
       const status = await api.shop.isOpen();
       setIsShopOpen(status.is_open);
@@ -197,7 +228,6 @@ export function DeliveryPage() {
 
   const geoReady = currentLat !== null && currentLng !== null;
 
-  // Add loading check at the beginning of render
   if (checkingShopStatus) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -247,7 +277,6 @@ export function DeliveryPage() {
           <p className="text-gray-600">{t('deliveryDesc')}</p>
         </motion.div>
 
-        {/* Add shop closed warning banner */}
         {!isShopOpen && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }} 
@@ -275,7 +304,6 @@ export function DeliveryPage() {
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Delivery Information and Customer Form */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('deliveryTitle')}</h2>
 
@@ -319,8 +347,35 @@ export function DeliveryPage() {
                       className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                     >
                       <MapPin className="w-4 h-4" />
-                      <span>{t('useCurrentLocationRequired')}</span>
+                      <span>
+                        {locationPermission === 'denied' 
+                          ? (t('enableLocationAccess') || 'Enable Location Access')
+                          : t('useCurrentLocationRequired')
+                        }
+                      </span>
                     </button>
+
+                    {locationPermission === 'denied' && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-orange-800 mb-2">
+                              {t('locationAccessBlocked') || 'Location Access Blocked'}
+                            </p>
+                            <p className="text-sm text-orange-700 mb-3">
+                              {t('locationAccessInstructions') || 'To enable location access:'}
+                            </p>
+                            <ol className="text-sm text-orange-700 space-y-1 list-decimal list-inside">
+                              <li>{t('locationStep1') || 'Tap the lock icon in your browser\'s address bar'}</li>
+                              <li>{t('locationStep2') || 'Find "Location" or "Site permissions"'}</li>
+                              <li>{t('locationStep3') || 'Change permission to "Allow"'}</li>
+                              <li>{t('locationStep4') || 'Reload the page'}</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {shopInfo && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -329,7 +384,6 @@ export function DeliveryPage() {
                           <br />
                           {t('deliveryFeeLabel')}: {shopInfo.delivery_charges} kr
                           <br />
-                          {/* Heuristic: don't show free-delivery info when minimum_order === 1 */}
                           {shopInfo.minimum_order !== 1 && (
                             <>
                               {t('freeDeliveryLabel', 'Gratis levering ved bestilling over', 'Free delivery for orders over')}: {shopInfo.minimum_order} kr
@@ -339,7 +393,7 @@ export function DeliveryPage() {
                       </div>
                     )}
 
-                    {!geoReady && (
+                    {!geoReady && locationPermission !== 'denied' && (
                       <div className="mt-3 p-3 rounded-lg bg-yellow-50 border border-yellow-100 text-sm text-yellow-800">
                         {t('allowLocationAccess')}
                       </div>
@@ -422,7 +476,6 @@ export function DeliveryPage() {
                     <motion.div key={item.product_id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="bg-white rounded-lg p-4 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          {/* Use getProductName to display the correct language version */}
                           <h3 className="font-medium text-gray-900 truncate">{getProductName(item)}</h3>
                           <p className="text-sm text-gray-600">{item.price} kr {t('each', 'hver', 'each')}</p>
                         </div>
@@ -457,10 +510,6 @@ export function DeliveryPage() {
                     </div>
                     <div className="flex justify-between">
                       <span>{t('deliveryFeeLabel')}</span>
-                      {/*
-                        Heuristic: if minimum_order === 1 => no free-delivery rule, always show delivery charge.
-                        Otherwise, show freeLabel when subtotal >= minimum_order.
-                      */}
                       <span>
                         {shopInfo?.minimum_order === 1
                           ? `${shopInfo?.delivery_charges || 90} kr`
