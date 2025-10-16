@@ -114,8 +114,15 @@ export function MyOrdersPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
+    // Force display in Europe/Oslo timezone
     return date.toLocaleString(currentLanguage.code === 'no' ? 'nb-NO' : 'en-US', {
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Oslo',  // Add this
+      hour12: false  // Use 24-hour format for consistency
     });
   };
 

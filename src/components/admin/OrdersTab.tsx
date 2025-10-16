@@ -6,7 +6,7 @@ import { api } from '../../services/api';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export function OrdersTab({ orders, onUpdateStatus }: OrdersTabProps) {
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [enrichedItems, setEnrichedItems] = useState<EnrichedOrderItem[]>([]);
@@ -125,6 +125,20 @@ export function OrdersTab({ orders, onUpdateStatus }: OrdersTabProps) {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  // Add this helper function at the component level
+  const formatOrderDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString(currentLanguage.code === 'no' ? 'nb-NO' : 'en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Oslo',
+      hour12: false
+    });
   };
 
   return (
@@ -484,7 +498,7 @@ export function OrdersTab({ orders, onUpdateStatus }: OrdersTabProps) {
 
                 {/* Order Date */}
                 <div className="border-t pt-4 text-sm text-gray-600">
-                  <p>{t('orderCreatedLabel')}: {new Date(selectedOrder.created_at).toLocaleString()}</p>
+                  <p>{t('orderCreatedLabel')}: {formatOrderDate(selectedOrder.created_at)}</p>
                 </div>
 
                 {/* Action Buttons */}
