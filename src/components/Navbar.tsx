@@ -58,9 +58,12 @@ export function Navbar() {
   // Get nav links from language context
   const navLinks = getNavLinks();
 
+  // exclude my-orders from the main nav so it only appears as the right-side icon
+  const navLinksFiltered = navLinks.filter(link => link.path !== '/my-orders');
+  
   // Get first letter of shop name for logo
   const shopFirstLetter = shopInfo?.shop_name ? shopInfo.shop_name.charAt(0) : 'F';
-
+  
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8"> {/* px-2 for small screens */}
@@ -81,7 +84,7 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
-            {navLinks.map((link) => (
+            {navLinksFiltered.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
@@ -202,15 +205,6 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              {/* My Orders Button (mobile only) */}
-              <Link
-                to="/my-orders"
-                onClick={() => setIsOpen(false)}
-                className="flex md:hidden items-center space-x-1 px-2 py-2 rounded text-xs sm:text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-gray-50 transition-colors"
-              >
-                <ClipboardList className="w-4 h-4 text-gray-700" />
-                <span>{t('myOrders')}</span>
-              </Link>
             </div>
           </motion.div>
         )}
