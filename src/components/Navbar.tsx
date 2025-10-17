@@ -56,11 +56,10 @@ export function Navbar() {
   const isActive = (path: string) => location.pathname === path;
 
   // Get nav links from language context
-  const rawNavLinks = getNavLinks();
-  const normalize = (p: string) => p.startsWith('/') ? p : `/${p}`;
-  const navLinks = rawNavLinks.map(l => ({ ...l, path: normalize(l.path) }));
+  const navLinks = getNavLinks();
+
   // exclude my-orders from the main nav so it only appears as the right-side icon
-  const navLinksFiltered = navLinks.filter(link => normalize(link.path) !== '/my-orders');
+  const navLinksFiltered = navLinks.filter(link => link.path !== '/my-orders');
   
   // Get first letter of shop name for logo
   const shopFirstLetter = shopInfo?.shop_name ? shopInfo.shop_name.charAt(0) : 'F';
@@ -192,7 +191,7 @@ export function Navbar() {
             className="md:hidden py-3 border-t border-gray-200"
           >
             <div className="flex flex-col space-y-2">
-              {navLinksFiltered.map((link) => (
+              {navLinks.map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}
