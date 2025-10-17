@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, X, ShoppingCart, Globe, ClipboardList } from 'lucide-react';
+import { Menu, X, ShoppingCart, Globe, ClipboardList, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCart } from '../contexts/CartContext';
 import { api } from '../services/api';
@@ -15,8 +15,30 @@ export function Navbar() {
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // new state/ref for cart dropdown
+  const [cartOpen, setCartOpen] = useState(false);
+  const cartRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     fetchShopInfo();
+  }, []);
+
+  // close cart dropdown on route change
+  useEffect(() => {
+    setCartOpen(false);
+  }, [location.pathname]);
+
+  // click outside to close cart dropdown
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!cartRef.current) return;
+      if (!(e.target instanceof Node)) return;
+      if (!cartRef.current.contains(e.target)) {
+        setCartOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
   const fetchShopInfo = async () => {
@@ -87,18 +109,49 @@ export function Navbar() {
               </span>
             </button>
 
-            {/* Cart Button */}
-            <Link
-              to="/menu"
-              className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <ShoppingCart className="w-5 h-5 text-gray-700" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {totalItems}
-                </span>
+            {/* Cart Button -> now opens dropdown with Pre-order / Delivery */}
+            <div ref={cartRef} className="relative">
+              <button
+                onClick={() => setCartOpen((v) => !v)}
+                className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-1"
+                aria-haspopup="true"
+                aria-expanded={cartOpen}
+                aria-label="Cart actions"
+              >
+                <ShoppingCart className="w-5 h-5 text-gray-700" />
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+
+              {cartOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute right-0 mt-2 w-44 bg-white rounded-lg shadow-lg z-50 ring-1 ring-black ring-opacity-5"
+                >
+                  <div className="py-1">
+                    <Link
+                      to="/preorder"
+                      onClick={() => setCartOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      {t('preorder') || 'Pre-order'}
+                    </Link>
+                    <Link
+                      to="/delivery"
+                      onClick={() => setCartOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      {t('delivery') || 'Delivery'}
+                    </Link>
+                  </div>
+                </motion.div>
               )}
-            </Link>
+            </div>
 
             {/* My Orders Button (desktop only) */}
             <Link
