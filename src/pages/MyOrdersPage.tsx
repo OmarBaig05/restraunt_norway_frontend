@@ -5,6 +5,7 @@ import { Clock, Package, AlertCircle, CheckCircle, Truck, ChevronRight, X, MapPi
 import { api } from '../services/api';
 import { OrderResponse } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { DateTime } from 'luxon';
 
 export function MyOrdersPage() {
   const { t, currentLanguage } = useLanguage();
@@ -56,6 +57,7 @@ export function MyOrdersPage() {
       setLoading(true);
       setError('');
       const myOrders = await api.orders.getMyOrders();
+      console.log("all orders",myOrders)
 
       myOrders.sort((a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -113,17 +115,28 @@ export function MyOrdersPage() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    // Force display in Europe/Oslo timezone
-    return date.toLocaleString(currentLanguage.code === 'no' ? 'nb-NO' : 'en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Oslo',  // Add this
-      hour12: false  // Use 24-hour format for consistency
-    });
+    if (!dateString) return '';
+    // Prefer Luxon to reliably parse ISO timestamps and render Oslo wall-clock time
+    const dt = DateTime.fromISO(dateString);
+    if (dt.isValid) {
+      const oslo = dt.setZone('Europe/Oslo');
+      const locale = currentLanguage?.code === 'no' ? 'nb-NO' : 'en-US';
+      return oslo.setLocale(locale).toFormat('dd LLL yyyy HH:mm');
+    }
+    // Fallback to native Intl
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat(
+      currentLanguage.code === 'no' ? 'nb-NO' : 'en-US',
+      {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }
+    ).format(d);
   };
 
   if (loading) {

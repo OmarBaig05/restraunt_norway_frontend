@@ -4,9 +4,10 @@ import { OrderResponse, Product, OrdersTabProps, EnrichedOrderItem } from '../..
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../services/api';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { DateTime } from 'luxon';
 
 export function OrdersTab({ orders, onUpdateStatus }: OrdersTabProps) {
-  const { t, currentLanguage } = useLanguage();
+  const { t } = useLanguage();
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [enrichedItems, setEnrichedItems] = useState<EnrichedOrderItem[]>([]);
@@ -127,19 +128,19 @@ export function OrdersTab({ orders, onUpdateStatus }: OrdersTabProps) {
     }
   };
 
-  // Add this helper function at the component level
-  const formatOrderDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString(currentLanguage.code === 'no' ? 'nb-NO' : 'en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Oslo',
-      hour12: false
-    });
+  // Replace previous formatOrderDate with a robust formatter that uses Luxon
+  const formatOrderDate = (dateInput: string | Date | undefined | null): string => {
+    if (!dateInput) return '';
+
+    const dt = typeof dateInput === 'string'
+      ? DateTime.fromISO(dateInput)
+      : DateTime.fromJSDate(dateInput);
+
+    if (!dt.isValid) return '';
+
+    return dt.toFormat('dd LLL yyyy HH:mm');
   };
+  
 
   return (
     <>
@@ -398,12 +399,12 @@ export function OrdersTab({ orders, onUpdateStatus }: OrdersTabProps) {
                         </div>
                       </div>
                     )}
-                    {selectedOrder.pickup_time && (
+                    {/* {selectedOrder.pickup_time && (
                       <div className="flex items-center space-x-2 text-gray-700">
                         <Clock className="w-4 h-4" />
-                        <span>{t('orderCreatedLabel')}: {new Date(selectedOrder.pickup_time).toLocaleString()}</span>
+                        <span>{t('orderCreatedLabel')}: {formatOrderDate(selectedOrder.pickup_time)}</span>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 </div>
 

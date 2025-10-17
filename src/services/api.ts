@@ -20,7 +20,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 // Helper function to make fetch requests with session handling
 const apiFetch = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
   const sessionId = checkAndRefreshSession();
-  
+
   const headers = {
     'Content-Type': 'application/json',
     'session-id': sessionId,
@@ -54,7 +54,7 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}): Promise<an
 // Helper function for file uploads (without JSON content-type)
 const apiUpload = async (endpoint: string, formData: FormData): Promise<any> => {
   const sessionId = checkAndRefreshSession();
-  
+
   const headers = {
     'session-id': sessionId,
     'x-session-id': sessionId,
@@ -184,93 +184,98 @@ export const api = {
       orderData: Omit<PreorderCreate, 'session_id'>
     ): Promise<{ order_id: string; token: string; message: string }> => {
       const sessionId = checkAndRefreshSession();
+      // ensure frontend does NOT send created_at (backend will set it)
+      const payload: any = {
+        ...orderData,
+        session_id: sessionId,
+      };
+      delete payload.created_at;
       return await apiFetch('/orders/preorder/', {
         method: 'POST',
-        body: JSON.stringify({
-          ...orderData,
-          session_id: sessionId,
-        }),
+        body: JSON.stringify(payload),
       });
     },
-    
+
     createDeliveryOrder: async (
       orderData: Omit<DeliveryOrderCreate, 'session_id'>
     ): Promise<{ order_id: string; token: string; distance: number; message: string }> => {
       const sessionId = checkAndRefreshSession();
+      // ensure frontend does NOT send created_at (backend will set it)
+      const payload: any = {
+        ...orderData,
+        session_id: sessionId,
+      };
+      delete payload.created_at;
       return await apiFetch('/orders/delivery/', {
         method: 'POST',
-        body: JSON.stringify({
-          ...orderData,
-          session_id: sessionId,
-        }),
+        body: JSON.stringify(payload),
       });
     },
-    
+
     getBySessionId: async (sessionId?: string): Promise<OrderResponse[]> => {
       const sid = sessionId || checkAndRefreshSession();
       return await apiFetch(`/orders/session/${sid}`);
     },
-    
+
     getMyOrders: async (): Promise<OrderResponse[]> => {
       return api.orders.getBySessionId();
     },
-    
+
     getAllPreorders: async (): Promise<OrderResponse[]> => {
-      // Replace the session-filtered approach with an admin endpoint call
       return await apiFetch('/orders/preorder/');
     },
-    
+
     getAllDeliveryOrders: async (): Promise<OrderResponse[]> => {
       return await apiFetch('/orders/delivery/');
     },
-    
+
     getAllOrders: async (): Promise<OrderResponse[]> => {
       // For admin: get all orders from both types
       const [preorders, deliveryOrders] = await Promise.all([
         api.orders.getAllPreorders(),
         api.orders.getAllDeliveryOrders()
       ]);
-      return [...preorders, ...deliveryOrders].sort((a, b) => 
+      return [...preorders, ...deliveryOrders].sort((a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     },
-    
+
     approvePreorder: async (orderId: string): Promise<{ message: string }> => {
       return await apiFetch(`/orders/preorder/${orderId}/approve/`, {
         method: 'PUT',
       });
     },
-    
+
     completePreorder: async (orderId: string): Promise<{ message: string }> => {
       return await apiFetch(`/orders/preorder/${orderId}/complete/`, {
         method: 'PUT',
       });
     },
-    
+
     approveDeliveryOrder: async (orderId: string): Promise<{ message: string }> => {
       return await apiFetch(`/orders/delivery/${orderId}/approve/`, {
         method: 'PUT',
       });
     },
-    
+
     rejectDeliveryOrder: async (orderId: string): Promise<{ message: string }> => {
       return await apiFetch(`/orders/delivery/${orderId}/reject/`, {
         method: 'PUT',
       });
     },
-    
+
     completeDeliveryOrder: async (orderId: string): Promise<{ message: string }> => {
       return await apiFetch(`/orders/delivery/${orderId}/complete/`, {
         method: 'PUT',
       });
     },
-    
+
     rejectPreorder: async (orderId: string): Promise<{ message: string }> => {
       return await apiFetch(`/orders/preorder/${orderId}/reject/`, {
         method: 'PUT',
       });
     },
-    
+
     cleanupSession: async (sessionId?: string): Promise<{ message: string; deleted_count: number }> => {
       const sid = sessionId || checkAndRefreshSession();
       return await apiFetch(`/orders/cleanup/${sid}`, {
